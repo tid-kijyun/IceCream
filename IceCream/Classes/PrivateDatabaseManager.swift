@@ -138,10 +138,17 @@ final class PrivateDatabaseManager: DatabaseManager {
         let changesOp = CKFetchRecordZoneChangesOperation(recordZoneIDs: zoneIds, optionsByRecordZoneID: zoneIdOptions)
         changesOp.fetchAllChanges = true
         
+        let recordWithIDWasDeletedBlock: ((CKRecord.ID, CKRecord.RecordType) -> Void) = { [weak self] recordId, _ in
+            guard let self = self else { return }
+            guard let syncObject = self.syncObjects.first(where: { $0.zoneID == recordId.zoneID }) else { return }
+            syncObject.delete(recordID: recordId)
+        }
+
         changesOp.recordZoneChangeTokensUpdatedBlock = { [weak self] zoneId, token, _ in
             guard let self = self else { return }
             guard let syncObject = self.syncObjects.first(where: { $0.zoneID == zoneId }) else { return }
             syncObject.zoneChangesToken = token
+            changesOp.recordWithIDWasDeletedBlock = recordWithIDWasDeletedBlock
         }
         
         changesOp.recordChangedBlock = { [weak self] record in
@@ -152,11 +159,6 @@ final class PrivateDatabaseManager: DatabaseManager {
             syncObject.add(record: record)
         }
         
-        changesOp.recordWithIDWasDeletedBlock = { [weak self] recordId, _ in
-            guard let self = self else { return }
-            guard let syncObject = self.syncObjects.first(where: { $0.zoneID == recordId.zoneID }) else { return }
-            syncObject.delete(recordID: recordId)
-        }
         
         changesOp.recordZoneFetchCompletionBlock = { [weak self](zoneId ,token, _, _, error) in
             guard let self = self else { return }
@@ -164,6 +166,7 @@ final class PrivateDatabaseManager: DatabaseManager {
             case .success:
                 guard let syncObject = self.syncObjects.first(where: { $0.zoneID == zoneId }) else { return }
                 syncObject.zoneChangesToken = token
+                changesOp.recordWithIDWasDeletedBlock = recordWithIDWasDeletedBlock
             case .retry(let timeToWait, _):
                 ErrorHandler.shared.retryOperationIfPossible(retryAfter: timeToWait, block: {
                     self.fetchChangesInZones(callback)
@@ -174,6 +177,7 @@ final class PrivateDatabaseManager: DatabaseManager {
                     /// The previousServerChangeToken value is too old and the client must re-sync from scratch
                     guard let syncObject = self.syncObjects.first(where: { $0.zoneID == zoneId }) else { return }
                     syncObject.zoneChangesToken = nil
+                    changesOp.recordWithIDWasDeletedBlock = nil
                     self.fetchChangesInZones(callback)
                 default:
                     return
