@@ -17,8 +17,8 @@ protocol DatabaseManager: class {
     
     var syncObjects: [Syncable] { get }
     
-    init(objects: [Syncable], container: CKContainer)
-    
+    init(objects: [Syncable], container: CKContainer, shouldRemoveObjectsFromLocalDB: Bool)
+
     func prepare()
     
     func fetchChangesInDatabase(_ callback: ((Error?) -> Void)?)

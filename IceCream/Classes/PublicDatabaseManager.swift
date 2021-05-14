@@ -20,7 +20,7 @@ final class PublicDatabaseManager: DatabaseManager {
     
     let syncObjects: [Syncable]
     
-    init(objects: [Syncable], container: CKContainer) {
+    init(objects: [Syncable], container: CKContainer, shouldRemoveObjectsFromLocalDB: Bool) {
         self.syncObjects = objects
         self.container = container
         self.database = container.publicCloudDatabase

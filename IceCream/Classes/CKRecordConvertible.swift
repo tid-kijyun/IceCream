@@ -18,6 +18,7 @@ public protocol CKRecordConvertible {
     var record: CKRecord { get }
 
     var isDeleted: Bool { get }
+    var shouldStoreInCloud: Bool { get }
 }
 
 extension CKRecordConvertible where Self: Object {

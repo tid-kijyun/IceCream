@@ -145,8 +145,8 @@ extension SyncObject: Syncable {
                 case .initial(_):
                     break
                 case .update(let collection, _, let insertions, let modifications):
-                    let recordsToStore = (insertions + modifications).filter { $0 < collection.count }.map { collection[$0] }.filter{ !$0.isDeleted }.map { $0.record }
-                    let recordIDsToDelete = modifications.filter { $0 < collection.count }.map { collection[$0] }.filter { $0.isDeleted }.map { $0.recordID }
+                    let recordsToStore = (insertions + modifications).filter { $0 < collection.count }.map { collection[$0] }.filter{ $0.shouldStoreInCloud }.map { $0.record }
+                    let recordIDsToDelete = modifications.filter { $0 < collection.count }.map { collection[$0] }.filter { $0.isDeleted || !$0.shouldStoreInCloud }.map { $0.recordID }
                     
                     guard recordsToStore.count > 0 || recordIDsToDelete.count > 0 else { return }
                     self.pipeToEngine?(recordsToStore, recordIDsToDelete)
@@ -183,7 +183,7 @@ extension SyncObject: Syncable {
     
     public func pushLocalObjectsToCloudKit() {
         let realm = try! Realm(configuration: self.realmConfiguration)
-        let recordsToStore: [CKRecord] = realm.objects(T.self).filter { !$0.isDeleted }.map { $0.record }
+        let recordsToStore: [CKRecord] = realm.objects(T.self).filter { $0.shouldStoreInCloud }.map { $0.record }
         pipeToEngine?(recordsToStore, [])
     }
     

@@ -19,11 +19,13 @@ final class PrivateDatabaseManager: DatabaseManager {
     let database: CKDatabase
     
     let syncObjects: [Syncable]
+    let shouldRemoveObjectsFromLocalDB: Bool
     
-    public init(objects: [Syncable], container: CKContainer) {
+    public init(objects: [Syncable], container: CKContainer, shouldRemoveObjectsFromLocalDB: Bool) {
         self.syncObjects = objects
         self.container = container
         self.database = container.privateCloudDatabase
+        self.shouldRemoveObjectsFromLocalDB = shouldRemoveObjectsFromLocalDB
     }
     
     func fetchChangesInDatabase(_ callback: ((Error?) -> Void)?) {
@@ -141,14 +143,18 @@ final class PrivateDatabaseManager: DatabaseManager {
         let recordWithIDWasDeletedBlock: ((CKRecord.ID, CKRecord.RecordType) -> Void) = { [weak self] recordId, _ in
             guard let self = self else { return }
             guard let syncObject = self.syncObjects.first(where: { $0.zoneID == recordId.zoneID }) else { return }
+            print("Deleted \(recordId.recordName)")
             syncObject.delete(recordID: recordId)
+        }
+        
+        if shouldRemoveObjectsFromLocalDB && syncObjects.first?.zoneChangesToken != nil {
+            changesOp.recordWithIDWasDeletedBlock = recordWithIDWasDeletedBlock
         }
 
         changesOp.recordZoneChangeTokensUpdatedBlock = { [weak self] zoneId, token, _ in
             guard let self = self else { return }
             guard let syncObject = self.syncObjects.first(where: { $0.zoneID == zoneId }) else { return }
             syncObject.zoneChangesToken = token
-            changesOp.recordWithIDWasDeletedBlock = recordWithIDWasDeletedBlock
         }
         
         changesOp.recordChangedBlock = { [weak self] record in
