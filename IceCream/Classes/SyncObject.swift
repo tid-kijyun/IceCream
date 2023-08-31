@@ -133,7 +133,7 @@ extension SyncObject: Syncable {
     public func registerLocalDatabase() {
         BackgroundWorker.shared.start {
             let realm = try! Realm(configuration: self.realmConfiguration)
-            self.notificationToken = realm.objects(T.self).observe { [weak self] (changes) in
+            self.notificationToken = realm.objects(T.self).observe({ [weak self](changes) in
                 guard let self = self else { return }
                 switch changes {
                 case .initial(_):
@@ -144,13 +144,10 @@ extension SyncObject: Syncable {
                     
                     guard recordsToStore.count > 0 || recordIDsToDelete.count > 0 else { return }
                     self.pipeToEngine?(recordsToStore, recordIDsToDelete)
-                    recordIDsToDelete.forEach {
-                        self.delete(recordID: $0)
-                    }
                 case .error(_):
                     break
                 }
-            }
+            })
         }
     }
     
